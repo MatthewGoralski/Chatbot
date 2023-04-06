@@ -32,10 +32,8 @@ responses = {
 }
 
 owm = pyowm.OWM('e75425d9196536d8d9021257adbdecc3')
-def get_weather():
+def get_weather(location):
     try:
-        # Get location from user input
-        location = input('What is your location? ')
         mgr = owm.weather_manager()
         observation = mgr.weather_at_place(location)
         w = observation.weather
@@ -49,6 +47,7 @@ def get_weather():
         print(f"Sorry, I couldn't get the weather information. {e}")
 
 
+
 # Define a function to recognize and respond to user input
 def respond(message):
     doc = nlp(message)
@@ -56,14 +55,10 @@ def respond(message):
 
     if intent:
         if intent == 'weather':
-            location = re.findall(r'[\w\s]+', message)[0]
-            return get_weather()
+            return responses.get(intent)
         else:
             return responses.get(intent)
     return None
-
-
-
 
 # Define a function to create a note and save it as a text file on the desktop
 def create_note():
@@ -97,28 +92,29 @@ def run_chat_bot():
     # Define the input box
     input_box = tk.Entry(root, width=50)
     input_box.pack(pady=10)
+    
+    waiting_for_location = False
 
     # Define the submit button
     def submit_message(event=None):
+        nonlocal waiting_for_location
+
         message = input_box.get()
-        response = respond(message)
-        if response:
+
+        if waiting_for_location:
+            location = message
+            response = get_weather(location)
             response_box.insert(tk.END, f'{response}\n\n')
-        elif re.search(patterns['note'], message, re.IGNORECASE):
-            create_note()
-        elif re.search(patterns['help'], message, re.IGNORECASE):
-            list_functions()
-        elif re.search(patterns['exit'], message, re.IGNORECASE):
-            response_box.insert(tk.END, 'Goodbye!\n\n')
-            root.destroy()
-        elif re.search(patterns['functions'], message, re.IGNORECASE):
-            list_functions()
+            waiting_for_location = False
         else:
-            response_box.insert(tk.END, "I'm sorry, I didn't understand your request.\n\n")
+            response = respond(message)
+            if response == responses['weather']:
+                response_box.insert(tk.END, f'{response}\n\n')
+                waiting_for_location = True
+            elif response:
+                response_box.insert(tk.END, f'{response}\n\n')
         input_box.delete(0, tk.END)
-
     input_box.bind("<Return>", submit_message)
-
     # Start the main event loop
     root.mainloop()
 
