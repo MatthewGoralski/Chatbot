@@ -18,7 +18,7 @@ patterns = {
     'functions': r'\b(what can you do\?|what are your functions\?)\b',
     'weather': r'\b(weather)\b'
 }
-#user intent
+
 def classify_intent(doc):
     for token in doc:
         if token.lower_ in patterns:
@@ -46,31 +46,30 @@ def get_weather(location):
     except Exception as e:
         print(f"Sorry, I couldn't get the weather information. {e}")
 
-
-
-# Define a function to recognize and respond to user input
 def respond(message):
     doc = nlp(message)
     intent = classify_intent(doc)
 
     if intent:
-        if intent == 'weather':
+        if intent == 'note':
+            return 'note'
+        elif intent == 'weather':
             return responses.get(intent)
         else:
             return responses.get(intent)
     return None
 
-# Define a function to create a note and save it as a text file on the desktop
-def create_note():
-    filename = input('What would you like to name your note? ') + '.txt'
+def create_note(note_name, content, response_box):
+    filename = note_name + '.txt'
     desktop_path = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
     filepath = os.path.join(desktop_path, filename)
-    content = input('What would you like to write in your note? ')
+    
     with open(filepath, 'w') as file:
         file.write(content)
-    print(f'Your note has been saved as {filename} on your desktop!')
+    
+    response_box.insert(tk.END, f'Your note has been saved as {filename} on your desktop!\n\n')
 
-# Define a function to list all the functions that the chat bot provides
+
 def list_functions():
     messagebox.showinfo("Functions", "I can help you with the following functions:\n"
                         "- Get the current date\n"
@@ -81,23 +80,22 @@ def list_functions():
 
 # Define the main function to run the chat bot
 def run_chat_bot():
-    # Create the main window
     root = tk.Tk()
     root.title("Chat Bot")
 
-    # Define the response box
     response_box = tk.Text(root, width=50, height=10)
     response_box.pack(pady=10)
 
-    # Define the input box
     input_box = tk.Entry(root, width=50)
     input_box.pack(pady=10)
-    
-    waiting_for_location = False
 
-    # Define the submit button
+    waiting_for_location = False
+    waiting_for_note_name = False
+    waiting_for_note_content = False
+    note_name = None
+
     def submit_message(event=None):
-        nonlocal waiting_for_location
+        nonlocal waiting_for_location, waiting_for_note_name, waiting_for_note_content, note_name
 
         message = input_box.get()
 
@@ -106,17 +104,31 @@ def run_chat_bot():
             response = get_weather(location)
             response_box.insert(tk.END, f'{response}\n\n')
             waiting_for_location = False
+        elif waiting_for_note_name:
+            note_name = message
+            response_box.insert(tk.END, 'Please enter the content of your note:\n\n')
+            waiting_for_note_name = False
+            waiting_for_note_content = True
+        elif waiting_for_note_content:
+             content = message
+             create_note(note_name, content, response_box)
+             waiting_for_note_content = False
         else:
             response = respond(message)
             if response == responses['weather']:
                 response_box.insert(tk.END, f'{response}\n\n')
                 waiting_for_location = True
-            elif response:
+            elif response == 'note':
+                response_box.insert(tk.END, 'Please enter the name of your note:\n\n')
+                waiting_for_note_name = True
+            else:
                 response_box.insert(tk.END, f'{response}\n\n')
         input_box.delete(0, tk.END)
+        response_box.see(tk.END)
+
     input_box.bind("<Return>", submit_message)
-    # Start the main event loop
     root.mainloop()
+
 
 # Run the chat bot
 run_chat_bot()
